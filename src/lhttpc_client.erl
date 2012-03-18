@@ -99,14 +99,12 @@ execute(From, Host, Port, Ssl, Path, Method, Hdrs, Body, Options) ->
     PartialUpload = proplists:is_defined(partial_upload, Options),
     PartialDownload = proplists:is_defined(partial_download, Options),
     PartialDownloadOptions = proplists:get_value(partial_download, Options, []),
+    StartNewSessionOptions = proplists:get_value(start_new_session, Options, false),
     NormalizedMethod = lhttpc_lib:normalize_method(Method),
     {ChunkedUpload, Request} = lhttpc_lib:format_request(Path, NormalizedMethod,
         Hdrs, Host, Port, Body, PartialUpload),
     SocketRequest = {socket, self(), Host, Port, Ssl},
-    Socket = case gen_server:call(lhttpc_manager, SocketRequest, infinity) of
-        {ok, S}   -> S; % Re-using HTTP/1.1 connections
-        no_socket -> undefined % Opening a new HTTP/1.1 connection
-    end,
+    Socket = get_socket(StartNewSessionOptions, SocketRequest),
     State = #client_state{
         host = Host,
         port = Port,
@@ -152,6 +150,16 @@ execute(From, Host, Port, Ssl, Path, Method, Hdrs, Body, Options) ->
             {ok, R}
     end,
     {response, self(), Response}.
+
+-spec get_socket(StartNewSession :: bool(), SocketRequest :: tuple()) ->
+                        undefined | socket().
+get_socket(true, _SocketRequest) ->
+    undefined;
+get_socket(false, SocketRequest) ->
+    case gen_server:call(lhttpc_manager, SocketRequest, infinity) of
+        {ok, S}   -> S; % Re-using HTTP/1.1 connections
+        no_socket -> undefined % Opening a new HTTP/1.1 connection
+    end.
 
 send_request(#client_state{attempts = 0}) ->
     % Don't try again if the number of allowed attempts is 0.

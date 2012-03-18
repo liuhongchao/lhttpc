@@ -39,7 +39,8 @@
         {connect_timeout, timeout()} |
         {send_retry, non_neg_integer()} |
         {partial_upload, non_neg_integer() | infinity} |
-        {partial_download, pid(), non_neg_integer() | infinity}.
+        {partial_download, pid(), non_neg_integer() | infinity} |
+        {start_new_session, bool()}.
 
 -type options() :: [option()].
 
